@@ -6,83 +6,90 @@
 3. 如何基于理想格/RLWE做一些事情？
 
 此即：构造
+$$LWE \leq PKE$$
 $$LWE \leq SIG$$
-$$LWE \leq IBE$$
 $$LWE \leq FHE$$
-（在后两者中，我们将使用Trapdoor技巧）
-
-（最后也没有讲IBE...）
+（在后两者中，我们将使用格Trapdoor技巧）
 
 ------
 
-首先，我们回顾Oded Regev的PKE构造方案。它是很多IBE/FHE方案的基础。
+首先，我们回顾Oded Regev的PKE构造方案（的一种构造方式）。它是很多IBE/FHE方案的基础。
 
 $\operatorname{KeyGen}$：我们生成$A \in \mathbb Z_q^{n \times m}$。（这里需要$A$是一个矮胖的矩阵，即$n < m$）。$r$是一个短向量，不妨认为$r \in \{0, 1\}^m$。计算$u = Ar$。
 于是：
-* 公钥$pk = (A, u = Ar + e)$
+* 公钥$pk = (A, u = Ar)$
 * 私钥$sk = r$。
 
 $\operatorname{Enc}_{pk}(m)$：我们生成均匀随机(uniformly random)的$s \leftarrow \mathbb{Z}_q^n$，计算
 $$(c_1, c_2) = (sA+e, su+e'+\frac{q}{2}m)$$
-则$(c_1, c_2)$为密文。
+其中$e, e'$都是噪声。则$(c_1, c_2)$为密文。
 
-$\operatorname{Dec}_{sk}(c_1, c_2)$：计算$\lfloor c_2 - c_1 \cdot r\rceil$。
+$\operatorname{Dec}_{sk}(c_1, c_2)$：计算$\lfloor c_2 - c_1 \cdot r\rceil$。其中$\lfloor ·\rceil$是取整。
 
 我们考察解密正确性，即计算$c_2 - c_1 \cdot r$。
 
 $$c_2 - c_1r = (su+e'+\frac{q}{2}m) - (sA+e)r$$
-$$= sAr+se +e'+\frac{q}{2}m- sAr - er = \frac{q}{2}m + e' + se - er$$
+$$= sAr+e'+\frac{q}{2}m- sAr - er = \frac{q}{2}m + e' - er$$
 
-其中后面的$e' + se - er$是小的。于是，我们只需要考虑$\frac{q}{2}m$是接近于0还是接近于$\frac{q}{2}$（在$\mod q$）意义下。
+其中后面的$e' + se - er$是小的。于是，我们只需要考察$\frac{q}{2}m$是接近于0还是接近于$\frac{q}{2}$（在$\mod q$意义下）。
 
-在这里。我们需要知道$r$是一个短向量。如果$r$是大的，那么无法保证解密的正确性。
-
-------
-
-下面，我们考虑上述PKE方案的安全性。注意到，公钥$pk = (A, u = Ar + e)$。于是根据LWE问题的安全性，计算$r$是困难的。
-
-我们考察密文$\operatorname{Enc}_{pk}(m)$：$(c_1, c_2)=(sA+e, su + e' + \frac{q}{2} m)$。
-
-于是根据DLWE问题的困难性，区分$(A, c_1 = sA+e)$和$(A, random)$是困难的。即，根据攻击者的能力是无法分辨出$c_1$和随机的区别的。
-
-下面看$c_2$。在$c_2$中，根据LWE问题的困难性假设，我们可以证明$u$的不可区分性。但是，$su+e$是不可区分的。
+在这里。我们需要知道$r$是一个短向量。如果$r$太大，那么无法保证解密的正确性。
 
 ------
 
-这里介绍一个引理：Leftover Hash Lemma
+下面，我们考虑上述PKE方案的安全性。我们首先观察密文的形式：
 
-**引理.** $A \leftarrow \mathbb{Z}_q^{n \times m}$，$r \leftarrow \{0, 1\}^m$，$u \leftarrow \mathbb{Z}_q^n$。如果$m > n\log q + O(\frac{1}{\log q})$，那么
-$$(A, Ar)\approx (A, uniRandom)$$
+$$(c_1, c_2) = (sA+e, su+e'+\frac{q}{2}m)$$
 
-即$(A, Ar)$和$(A, uniRandom)$是统计上不可区分的。
+注意到$c_1, c_2$长得都比较像LWE的sample。$c_1$显然就是一个LWE。如果$u$是uniformly random的向量，那么$c_2$也将是一个LWE的sample。
 
-------
+但是$u=Ar+e$，从构造上来看，$u$其实并不是在$\mathbb Z_q^n$上uniformly random的。因为$r$是在$\{0, 1\}^m$上均匀随机的而不是在$\mathbb Z_q^n$上均匀随机的。
 
-我们在这里不会去证明LHL。但是，我们提供一种理解LHL的思路：LHL本质上是一种随机性的提取或者降维(Randomness extraction)。
+但是$u实际上和uniformly random（在统计上）不可区分的。
 
-我们假设有一个随机源，它产生的东西不是真随机，但是总是带有一些伪随机的成分在里边。比如一个伪随机数生成器PRNG。我们知道，PRNG是一个$\{0, 1\}^m \rightarrow \{0, 1\}^n$的映射$f$，其中$n > m$。
+为了说明这样一件事情，我们引入Leftover Hash Lemma. 
 
-$f$并不是真随机的（因为在$\{0, 1\}^n$上面，$f$最多能映射到$2^m$个值）。
-
-假设存在一个不是真随机的随机源$r$。那么，$Ar$就是一个提取随机性的过程。$A$就是提取器。
-
-假设$r$的熵是$m$。如果$u$是真随机的，那么$u$的熵就是$n\log q$。
-
-因此，如果$m$比$n\log q$大一点点，那么$A$就是一个保留足够多随机信息的映射。我们可以在计算上认为它产生的东西就是随机的。
+它大概是说，你如果从$\{0, 1\}$中均匀随机选$r$，那么$u$的分布和均匀随机（在统计上）不可区分。
 
 ------
 
-**定理.** 上述PKE是CPA安全的。
+**引理（Leftover Hash Lemma, LHL）.** $A \leftarrow \mathbb{Z}_q^{n \times m}$，$r \leftarrow \{0, 1\}^m$，$u \leftarrow \mathbb{Z}_q^n$。如果$m > n\log q + O(\frac{1}{\log q})$，那么
+$$(A, Ar)\approx_\epsilon (A, u)$$
 
-我们需要证明，$(pk, \operatorname{Enc}_{pk}(m))$和$(pk, Random)$是统计不可区分的。
+其中，$\approx_\epsilon$指统计距离的差为$\epsilon$。
 
-$pk = (A, u = Ar)$，$\operatorname{Enc}_{pk}(m) = (sA+e, su+e'+\frac{q}{2}m)$
+即，$(A, Ar)$和$(A, u)$是统计上不可区分的。
 
-于是$pk = (A, u = Ar)$和$(A, u_0)$不可区分(LHL)。这里$u_0$是真·均匀随机。
+------
 
-于是$(sA+e, su+e'+\frac{q}{2}m)$和$(u_1, u_2+\frac{q}{2}m)$不可区分（因为LWE问题）。这里$u_1, u_2$是真 · 均匀随机。
+我们在这里不会去证明LHL。但是，我们提供一种理解LHL的思路：LHL本质上是一种对随机性的提取或者降维(Randomness extraction)。
 
-最后，$u_2+\frac{q}{2}m$和$u_2$也是不可区分的。
+假设存在一个随机源$r$。这个$r$均匀采样于$\{0, 1\}^m$，但是如果把这个$r$放在$\mathbb Z_q^m$下，那么它显然不是$\mathbb Z_q^m$上均匀随机的。
+
+我们计算$Ar$。这个$Ar$就是一个提取（或者压缩）随机性的过程。矮胖的矩阵$A$就是提取器。
+
+$r$的熵是$m\log 2$。如果$u$是真随机的，那么$u$的熵就是$n\log q$。（取对数底数为2）
+
+因此，如果$m\log 2$比$n\log q$大一点点，那么可以认为$r$中包含的随机性足够萃取成一个$\mathbb Z^n_q$上的随机向量。我们就可以在计算上认为$Ar$就是随机的。
+
+从这里的分析来看，引理中涉及的不等式$m > n\log q + O(\frac{1}{\log q})$似乎是存在一些不准确的地方。
+
+
+------
+
+**定理.** 上述PKE是安全的，并且密文是伪随机的。
+
+我们需要证明，$(pk, \operatorname{Enc}_{pk}(m))$和$(pk, uniform)$是统计不可区分的。
+
+$(pk, \operatorname{Enc}_{pk}(m)) = (A, u = Ar, sA+e, su+e'+\frac{q}{2}m)$，
+
+我们有$pk = (A, u = Ar)$和$(A, u_0)$不可区分(LHL)。这里$u_0$是真·均匀随机。
+
+于是$(pk, \operatorname{Enc}_{pk}(m))$和$(A, u_0, sA+e, su+e'+\frac{q}{2}m)$不可区分。
+
+根据LWE问题（和LHL），$(A, u_0, sA+e, su+e'+\frac{q}{2}m)$和$(A, u_0, u_1, u_2+\frac{q}{2}m)$是不可区分的。其中$u_1, u_2$是真·均匀随机。
+
+最后，由于一次性密码本，$(A, u_0, u_1, u_2+\frac{q}{2}m)$和$(A, u_0, u_1, u_2)$是不可区分的。
 
 ------
 
@@ -248,5 +255,22 @@ q/2
 
 可以直接得到：$C_1 + C_2 = B(R_1+R_2) + (m_1+m_2)G$。
 
-但是做乘法不是那么容易。
+但是做乘法不是那么容易。假设有$C_1 = BR_1 + m_1G$和$C_2 = BR_2 + m_2G$。我们所希望的是，做乘法之后的密文仍然有类似于$BR + mG$的密文形式。
 
+最后达到的效果类似于计算$C_1G^{-1}(C_2)$。
+
+首先，我们需要找到一个计算$G^{-1}$的方法。基于比特分解我们可以得到$GG^{-1} = I$。
+
+于是计算密文乘法的过程就类似于：
+
+$$(BR_1 + m_1G)G^{-1}C_2$$
+$$= BR_1G^{-1}C_2 + m_1GG^{-1}C_2$$
+$$= BR'+m_1BR_2+m_1m_2G $$
+$$= BR' + Bm_1R_2 + m_1m_2G $$
+$$= BR'' + m_1m_2G$$
+
+于是转化成了我们想要的形式。
+
+我们考察上述的乘法操作。假如给定密文$C_1, C_2$，它们的噪声界分别为$b_1, b_2$，那么你计算$C_1C_2$和计算$C_2C_1$的结果存在差别，因为乘法的先后次序不同，引入的噪声是不一样的。
+
+$G^{-1}$大概将噪声扩大了$\sqrt{n}$倍。
